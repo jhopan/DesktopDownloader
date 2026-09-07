@@ -1,0 +1,15 @@
+# binary & build
+*.exe
+!ffmpeg.exe
+!ffprobe.exe
+Output/
+packed_tmp.exe
+
+# binary yang di-embed (jangan commit — diunduh terpisah)
+embed/
+
+# data & runtime
+cookies.txt
+*.log
+icon.ico
+icon.png
