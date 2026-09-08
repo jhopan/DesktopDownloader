@@ -58,7 +58,6 @@ border-bottom:3px solid transparent}.nav-item.active{border-left:0;border-bottom
 <nav>
 <a class="nav-item active" data-page="audio">Audio</a>
 <a class="nav-item" data-page="video">Video</a>
-<a class="nav-item" data-page="batch">Batch</a>
 <a class="nav-item" data-page="queue">Antrian</a>
 <a class="nav-item" data-page="settings">Pengaturan</a>
 </nav>
@@ -92,7 +91,6 @@ border-bottom:3px solid transparent}.nav-item.active{border-left:0;border-bottom
 <input type="text" id="url-video" placeholder="https://youtube.com/watch?v=..." required>
 <button id="btn-video">Cek Format</button>
 <div class="status" id="status-video"></div>
-<p class="hint" style="margin:4px 0 0">Video/playlist? <a href="#" id="link-batch" style="color:#3b82f6">Gunakan Mode Batch</a></p>
 <div class="result" id="result-video">
 <div id="title-video"></div>
 <div class="save-row">
@@ -107,29 +105,6 @@ border-bottom:3px solid transparent}.nav-item.active{border-left:0;border-bottom
 <p class="hint">Video+Audio otomatis di-merge jadi satu file (butuh ffmpeg —
 ter-embed). Kualitas 1080p/4K = video saja + audio digabung otomatis.
 Thumbnail nempel sebagai cover. Satu download pada satu waktu.</p>
-</div>
-</div>
-
-<div id="page-batch" class="page">
-<h1>Mode Batch</h1>
-<div class="card">
-<input type="text" id="url-batch" placeholder="URL playlist YouTube...">
-<button id="btn-batch">Muat Playlist</button>
-<div class="status" id="status-batch"></div>
-<div id="batch-list" style="display:none;max-height:380px;overflow-y:auto;margin-top:12px">
-<table><thead><tr><th style="width:30px"><input type="checkbox" id="chk-all" checked></th><th>#</th><th>Judul</th></tr></thead>
-<tbody id="tbody-batch"></tbody></table>
-</div>
-<div id="batch-actions" style="display:none;margin-top:12px">
-<label class="chk" style="display:flex"><input type="checkbox" id="opt-batch-thumb" checked> Thumbnail</label>
-<label class="chk" style="display:flex"><input type="checkbox" id="opt-batch-meta" checked> Metadata</label>
-<label class="chk" style="display:flex"><input type="checkbox" id="opt-batch-mp3"> Convert ke MP3</label>
-<label style="display:block;margin-top:8px">Simpan ke</label>
-<input type="text" id="dir-batch" placeholder="folder tujuan...">
-<button type="button" id="browse-batch" style="padding:8px 14px;font-size:13px">Pilih...</button>
-<button id="btn-batch-go" class="full" style="margin-top:12px">Masukkan ke Antrian</button>
-</div>
-<p class="hint">Item masuk antrian satu per satu otomatis. ffmpeg jalan cuma saat dibutuhkan (thumbnail/merge/mp3).</p>
 </div>
 </div>
 
@@ -156,15 +131,6 @@ Cara: install ekstensi <b>Get cookies.txt LOCALLY</b> di Chrome → buka youtube
 </div>
 </div>
 <div class="card">
-<h3 style="margin-top:0">yt-dlp</h3>
-<div style="display:flex;gap:10px;align-items:center">
-<button type="button" id="btn-update-ytdlp">Cek &amp; Update yt-dlp</button>
-<div class="status" id="status-update" style="margin:0"></div>
-</div>
-<p class="hint">Update bundel yt-dlp ke versi terbaru (butuh internet).
-Penting: YouTube sering berubah, yt-dlp lawas bikin gagal extract.</p>
-</div>
-<div class="card">
 <h3 style="margin-top:0">Info</h3>
 <table id="info-table"><tbody></tbody></table>
 <p class="hint" id="ffmpeg-status"></p>
@@ -184,7 +150,6 @@ Penting: YouTube sering berubah, yt-dlp lawas bikin gagal extract.</p>
 <h3>Opsi Download</h3>
 <label class="chk"><input type="checkbox" id="opt-thumb" checked> Tempel thumbnail (cover) ke file</label>
 <label class="chk"><input type="checkbox" id="opt-meta" checked> Sertakan metadata (judul, channel)</label>
-<label class="chk" id="opt-mp3-row" style="display:none"><input type="checkbox" id="opt-mp3"> Convert ke MP3 (via ffmpeg, untuk player lama)</label>
 <div class="modal-btn">
 <button type="button" class="ghost" onclick="tutupModal()">Batal</button>
 <button type="button" id="opt-go">Download</button>
@@ -336,11 +301,10 @@ function bukaModal(kind) {
   const i = Array.from(document.querySelectorAll(`input[name="fmt-${kind}"]`)).indexOf(chk);
   const f = state[kind].fmts[i];
   pendingKind = kind;
-  // mp3 hanya untuk audio
-  document.getElementById('opt-mp3-row').style.display = kind === 'audio' ? 'flex' : 'none';
   // tampilkan format yang benar2 terpilih di modal
   document.querySelector('#opt-modal h3').textContent =
     'Opsi Download — ' + f.ext + ' ' + f.q + ' ' + f.codec;
+  pendingKind = kind;
   document.getElementById('opt-modal').classList.add('show');
 }
 function tutupModal() {
@@ -366,8 +330,7 @@ async function mulai(kind) {
       body: JSON.stringify({
         url: state[kind].url, format_id: fmtId, dir: dir || '', mode: kind,
         thumb: document.getElementById('opt-thumb').checked,
-        metadata: document.getElementById('opt-meta').checked,
-        mp3: document.getElementById('opt-mp3').checked
+        metadata: document.getElementById('opt-meta').checked
       })
     });
     const d = await res.json();
@@ -428,70 +391,6 @@ document.querySelectorAll('.nav-item').forEach(item => {
   });
 });
 
-// ===== Batch =====
-let batchItems = [];
-document.getElementById('link-batch').onclick = (e) => {
-  e.preventDefault();
-  const u = document.getElementById('url-video').value.trim();
-  if (u) document.getElementById('url-batch').value = u;
-  document.querySelector('.nav-item[data-page="batch"]').click();
-};
-document.getElementById('btn-batch').onclick = async () => {
-  const url = document.getElementById('url-batch').value.trim();
-  const st = document.getElementById('status-batch');
-  if (!url) return;
-  st.textContent = 'Memuat playlist... (bisa lambat untuk playlist besar)';
-  document.getElementById('batch-list').style.display = 'none';
-  document.getElementById('batch-actions').style.display = 'none';
-  try {
-    const r = await fetch('/api/playlist', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({url})});
-    const d = await r.json();
-    if (d.error) { st.textContent = 'Gagal: ' + d.error; return; }
-    batchItems = d.items;
-    const tb = document.getElementById('tbody-batch');
-    tb.innerHTML = '';
-    batchItems.forEach((it, i) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td><input type="checkbox" class="chk-item" data-i="${i}" checked></td><td>${i+1}</td><td>${it.title.slice(0,70)}</td>`;
-      tb.appendChild(tr);
-    });
-    document.getElementById('batch-list').style.display = 'block';
-    document.getElementById('batch-actions').style.display = 'block';
-    document.getElementById('dir-batch').value = document.getElementById('def-dir').value || '';
-    st.textContent = d.count + ' item dimuat.';
-  } catch(e) { st.textContent = 'Error: ' + e; }
-};
-document.getElementById('chk-all').onchange = (e) => {
-  document.querySelectorAll('.chk-item').forEach(c => c.checked = e.target.checked);
-};
-document.getElementById('browse-batch').onclick = async () => {
-  try {
-    const r = await fetch('/api/browse'); const d = await r.json();
-    if (d.dir) document.getElementById('dir-batch').value = d.dir;
-  } catch(e) {}
-};
-document.getElementById('btn-batch-go').onclick = async () => {
-  const dir = document.getElementById('dir-batch').value.trim();
-  const thumb = document.getElementById('opt-batch-thumb').checked;
-  const meta = document.getElementById('opt-batch-meta').checked;
-  const mp3 = document.getElementById('opt-batch-mp3').checked;
-  const sel = [];
-  document.querySelectorAll('.chk-item').forEach(c => { if (c.checked) sel.push(batchItems[+c.dataset.i]); });
-  if (!sel.length) { document.getElementById('status-batch').textContent = 'Tidak ada item terpilih.'; return; }
-  const b = document.getElementById('btn-batch-go');
-  b.disabled = true; b.textContent = 'Menambahkan ' + sel.length + ' item...';
-  let ok = 0;
-  for (const it of sel) {
-    try {
-      await fetch('/api/download', {method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({url: it.url, format_id: 'ba', dir: dir, mode: 'audio', thumb, metadata: meta, mp3})});
-      ok++;
-    } catch(e) {}
-  }
-  b.disabled = false; b.textContent = 'Masukkan ke Antrian';
-  document.getElementById('status-batch').textContent = ok + ' item masuk antrian. Lihat menu Antrian.';
-};
-
 async function muatInfo() {
   const res = await fetch('/api/info');
   const d = await res.json();
@@ -503,20 +402,6 @@ async function muatInfo() {
     'ffmpeg tidak ditemukan - merge 1080p dan mp3 tidak tersedia.';
   muatCookie();
 }
-
-// ===== Update yt-dlp =====
-document.getElementById('btn-update-ytdlp').onclick = async () => {
-  const s = document.getElementById('status-update');
-  const b = document.getElementById('btn-update-ytdlp');
-  b.disabled = true; s.textContent = 'Memeriksa & mengunduh update...';
-  try {
-    const r = await fetch('/api/update', {method:'POST'});
-    const d = await r.json();
-    s.textContent = d.error ? 'Gagal: ' + d.error : d.message;
-    if (d.ok) muatInfo();
-  } catch(e) { s.textContent = 'Error: ' + e; }
-  b.disabled = false;
-};
 
 // ===== Cookies =====
 async function muatCookie() {

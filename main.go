@@ -122,9 +122,11 @@ func main() {
 	mux.HandleFunc("/api/download", handleDownload)
 	mux.HandleFunc("/api/queue", handleQueue)
 	mux.HandleFunc("/api/queue/remove", handleQueueRemove)
+	mux.HandleFunc("/api/playlist", handlePlaylist)
 	mux.HandleFunc("/api/info", handleInfo)
 	mux.HandleFunc("/api/browse", handleBrowse)
 	mux.HandleFunc("/api/cookies", handleCookies)
+	mux.HandleFunc("/api/update", handleUpdate)
 	mux.HandleFunc("/api/config", handleConfig)
 
 	ln, err := net.Listen("tcp", "127.0.0.1:8765")
@@ -440,6 +442,7 @@ type downloadReq struct {
 	Mode     string `json:"mode"`
 	Thumb    bool   `json:"thumb"`
 	Metadata bool   `json:"metadata"`
+	MP3      bool   `json:"mp3"`
 }
 
 func handleDownload(w http.ResponseWriter, r *http.Request) {
@@ -569,11 +572,48 @@ func doDownload(j *Job) {
 
 	rawFmts, _ := info["formats"].([]interface{})
 	var sel map[string]interface{}
-	for _, rf := range rawFmts {
-		f, _ := rf.(map[string]interface{})
-		if f != nil && f["format_id"] == req.FormatID {
-			sel = f
-			break
+	if req.FormatID == "ba" {
+		// bestaudio: pilih opus tertinggi, fallback bestaudio yt-dlp
+		for _, rf := range rawFmts {
+			f, _ := rf.(map[string]interface{})
+			if f == nil || f["format_id"] == req.FormatID {
+				continue
+			}
+			if classify(f) == "audio" && f["ext"] == "webm" {
+				if sel == nil {
+					sel = f
+					continue
+				}
+				ab, _ := f["abr"].(float64)
+				ab2, _ := sel["abr"].(float64)
+				if ab > ab2 {
+					sel = f
+				}
+			}
+		}
+		if sel == nil {
+			for _, rf := range rawFmts {
+				f, _ := rf.(map[string]interface{})
+				if f != nil && classify(f) == "audio" {
+					ab, _ := f["abr"].(float64)
+					ab2 := -1.0
+					if sel != nil {
+						ab2, _ = sel["abr"].(float64)
+					}
+					if ab > ab2 {
+						sel = f
+					}
+				}
+			}
+		}
+	}
+	if sel == nil {
+		for _, rf := range rawFmts {
+			f, _ := rf.(map[string]interface{})
+			if f != nil && f["format_id"] == req.FormatID {
+				sel = f
+				break
+			}
 		}
 	}
 	if sel == nil {
@@ -613,6 +653,11 @@ func doDownload(j *Job) {
 	}
 	if req.Metadata {
 		dlArgs = append(dlArgs, "--embed-metadata")
+	}
+	if req.MP3 {
+		// convert ke mp3 via ffmpeg — hanya jalan kalau dicentang (ringan)
+		finalPath = outBase + ".mp3"
+		dlArgs = append(dlArgs, "-x", "--audio-format", "mp3", "--audio-quality", "0")
 	}
 	dlArgs = append(dlArgs, "--ffmpeg-location", ffmpegPath, "--newline", "--quiet", "--no-warnings")
 	dlArgs = append(dlArgs, cookiesArgs()...)
@@ -697,8 +742,72 @@ func doDownload(j *Job) {
 	j.File = finalPath
 }
 
-// handleQueue: daftar semua job untuk halaman Antrian.
+// handlePlaylist: daftar item playlist (tanpa download).
+func handlePlaylist(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		URL string `json:"url"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
+	if req.URL == "" {
+		jsonWrite(w, map[string]string{"error": "URL kosong"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 120*time.Second)
+	defer cancel()
+	opts := []string{"--dump-single-json", "--flat-playlist", "--no-warnings"}
+	opts = append(opts, cookiesArgs()...)
+	opts = append(opts, req.URL)
+	cmd := exec.CommandContext(ctx, ytdlpPath, opts...)
+	cmdNoWindow(cmd)
+	out, err := cmd.Output()
+	if err != nil {
+		jsonWrite(w, map[string]string{"error": "bukan playlist / gagal: " + firstLine(string(out))})
+		return
+	}
+	var info struct {
+		Entries []struct {
+			ID    string `json:"id"`
+			Title string `json:"title"`
+			URL   string `json:"url"`
+		} `json:"entries"`
+		Title     string `json:"title"`
+		PlaylistCount float64 `json:"playlist_count"`
+	}
+	if err := json.Unmarshal(out, &info); err != nil {
+		jsonWrite(w, map[string]string{"error": "parse gagal"})
+		return
+	}
+	items := make([]map[string]string, 0, len(info.Entries))
+	for _, e := range info.Entries {
+		u := e.URL
+		if u == "" && e.ID != "" {
+			u = "https://www.youtube.com/watch?v=" + e.ID
+		}
+		items = append(items, map[string]string{"url": u, "title": e.Title})
+	}
+	jsonWrite(w, map[string]interface{}{"title": info.Title, "count": len(items), "items": items})
+}
+// handleUpdate: self-update yt-dlp bundel (yt-dlp.exe mendukung -U).
+func handleUpdate(w http.ResponseWriter, r *http.Request) {
+	cmd := exec.Command(ytdlpPath, "-U")
+	cmdNoWindow(cmd)
+	out, err := cmd.CombinedOutput()
+	msg := strings.TrimSpace(string(out))
+	if err != nil {
+		jsonWrite(w, map[string]interface{}{"ok": false, "error": msg})
+		return
+	}
+	ver := "?"
+	vcmd := exec.Command(ytdlpPath, "--version")
+	cmdNoWindow(vcmd)
+	if vout, err := vcmd.Output(); err == nil {
+		ver = strings.TrimSpace(string(vout))
+	}
+	jsonWrite(w, map[string]interface{}{"ok": true, "message": msg + " — versi sekarang: " + ver})
+}
+
 func handleQueue(w http.ResponseWriter, r *http.Request) {
+
 	queueMu.Lock()
 	defer queueMu.Unlock()
 	out := make([]*Job, 0, len(jobs))
