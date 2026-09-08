@@ -5,7 +5,8 @@
 *{box-sizing:border-box}body{font-family:system-ui;background:var(--bg);color:var(--txt);margin:0}
 .sidebar{position:fixed;left:0;top:0;width:210px;height:100vh;background:var(--bg2);
 display:flex;flex-direction:column;border-right:1px solid var(--line)}
-.sidebar h2{margin:0;padding:22px 20px 18px;font-size:20px;border-bottom:1px solid var(--line)}
+.sidebar h2{margin:0;padding:22px 20px 18px;font-size:20px;border-bottom:1px solid var(--line);
+white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-0.3px}
 .sidebar nav{flex:1;padding:10px 0}
 .nav-item{display:block;padding:13px 20px;color:var(--mut);text-decoration:none;
 font-size:15px;cursor:pointer;border-left:3px solid transparent}
@@ -47,7 +48,7 @@ padding:10px 0;cursor:pointer}
 .modal-btn button{flex:1}
 button.ghost{background:transparent;border:1px solid var(--line);color:var(--mut)}
 @media(max-width:768px){.sidebar{position:static;width:100%;height:auto;flex-direction:row;
-align-items:center}.sidebar h2{border:0;padding:14px 16px;font-size:17px}
+align-items:center}.sidebar h2{border:0;padding:14px 16px;font-size:15px;max-width:60vw}
 .sidebar nav{display:flex;padding:0}.nav-item{padding:10px 14px;border-left:0;
 border-bottom:3px solid transparent}.nav-item.active{border-left:0;border-bottom-color:var(--acc)}
 .main{margin:0;padding:20px 16px}}
