@@ -9,7 +9,7 @@ import (
 var (
 	user32      = syscall.NewLazyDLL("user32.dll")
 	kernel32    = syscall.NewLazyDLL("kernel32.dll")
-	procLoadImg = kernel32.NewProc("LoadImageW")
+	procLoadImg = user32.NewProc("LoadImageW")
 	procSendMsg = user32.NewProc("SendMessageW")
 	procGetMod  = kernel32.NewProc("GetModuleHandleW")
 )
