@@ -149,6 +149,7 @@ func main() {
 	})
 	defer w.Destroy()
 	logf("webview ok, navigate...")
+	setWindowIcon(uintptr(w.Window()))
 	w.Navigate("http://127.0.0.1:8765")
 	logf("run loop mulai")
 	w.Run()
