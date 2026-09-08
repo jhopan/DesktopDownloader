@@ -1,7 +1,7 @@
 ; Inno Setup script — WebDownloader
 #define MyAppName "DownloaderDesktop"
 #define MyAppVersion "1.1.0"
-#define MyAppExeName "WebDownloader.exe"
+#define MyAppExeName "DownloaderDesktop.exe"
 
 [Setup]
 AppId={{7E3A2B91-6C4D-4E8A-9F1B-2A5C8D0E4F77}
@@ -22,7 +22,7 @@ WizardStyle=modern
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
-Source: "WebDownloader.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "DownloaderDesktop.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "ffmpeg.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "ffprobe.exe"; DestDir: "{app}"; Flags: ignoreversion
 
