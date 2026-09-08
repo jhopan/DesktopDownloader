@@ -296,7 +296,14 @@ document.getElementById('btndl-audio').onclick = (e) => bukaModal('audio');
 document.getElementById('btndl-video').onclick = (e) => bukaModal('video');
 
 function bukaModal(kind) {
-  if (!document.querySelector(`input[name="fmt-${kind}"]:checked`)) return;
+  const chk = document.querySelector(`input[name="fmt-${kind}"]:checked`);
+  if (!chk) return;
+  const i = Array.from(document.querySelectorAll(`input[name="fmt-${kind}"]`)).indexOf(chk);
+  const f = state[kind].fmts[i];
+  pendingKind = kind;
+  // tampilkan format yang benar2 terpilih di modal
+  document.querySelector('#opt-modal h3').textContent =
+    'Opsi Download — ' + f.ext + ' ' + f.q + ' ' + f.codec;
   pendingKind = kind;
   document.getElementById('opt-modal').classList.add('show');
 }
@@ -307,8 +314,11 @@ function tutupModal() {
 
 async function mulai(kind) {
   const cfg = PAGES[kind];
-  const f = state[kind].fmts.find(x => document.querySelector(`input[name="fmt-${kind}"]:checked`));
+  const radios = document.querySelectorAll(`input[name="fmt-${kind}"]`);
+  let f = null;
+  radios.forEach((r, i) => { if (r.checked) f = state[kind].fmts[i]; });
   if (!f) return;
+  const fmtId = String(f.id);
   const dir = document.getElementById(cfg.dir).value.trim();
   const status = document.getElementById(cfg.status);
   const b = document.getElementById(cfg.btndl);
@@ -318,7 +328,7 @@ async function mulai(kind) {
     const res = await fetch('/api/download', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        url: state[kind].url, format_id: f.id, dir: dir || '', mode: kind,
+        url: state[kind].url, format_id: fmtId, dir: dir || '', mode: kind,
         thumb: document.getElementById('opt-thumb').checked,
         metadata: document.getElementById('opt-meta').checked
       })
