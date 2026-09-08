@@ -81,10 +81,7 @@ border-bottom:3px solid transparent}.nav-item.active{border-left:0;border-bottom
 <tbody id="tbody-audio"></tbody></table>
 <button id="btndl-audio" class="full" disabled>Download</button>
 </div>
-<p class="hint">Audio langsung tersimpan di folder pilihanmu. Thumbnail otomatis
-nempel sebagai cover. Satu download pada satu waktu.
-<span style="color:#60a5fa">Saran: pilih <b>webm / opus</b> dengan kbps tertinggi —
-codec terbaik dari YouTube, kualitas lebih bagus per kbps dibanding aac/m4a.</span></p>
+<p class="hint" id="hint-audio" style="display:none"></p>
 </div>
 </div>
 
@@ -263,7 +260,7 @@ function renderTable(kind) {
   state[kind].fmts.forEach((f, i) => {
     const tr = document.createElement('tr');
     const badge = kind === 'video' ? `<td><span class="badge ${labels[f.kind][1]}">${labels[f.kind][0]}</span></td>` : '';
-    // sorot opus kbps tertinggi di menu audio
+    // sorot opus kbps tertinggi di menu audio + tampilkan saran
     let bestIdx = -1, bestAbr = -1;
     if (kind === 'audio') {
       state[kind].fmts.forEach((ff, ii) => {
@@ -272,6 +269,14 @@ function renderTable(kind) {
           if (abr > bestAbr) { bestAbr = abr; bestIdx = ii; }
         }
       });
+      const hint = document.getElementById('hint-audio');
+      if (bestIdx >= 0) {
+        hint.innerHTML = '<span style="color:#60a5fa">Saran: format webm/opus ' +
+          state[kind].fmts[bestIdx].q + ' — kualitas terbaik dari YouTube.</span>';
+        hint.style.display = 'block';
+      } else {
+        hint.style.display = 'none';
+      }
     }
     const best = i === bestIdx;
     if (best) tr.style.background = 'rgba(59,130,246,.12)';

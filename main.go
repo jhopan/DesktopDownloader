@@ -587,22 +587,26 @@ func doDownload(j *Job) {
 
 	var dlArgs []string
 	var finalPath string
+	// ponytail: postprocess (thumbnail/metadata/merge) yt-dlp gagal kalau
+	// nama output panjang + karakter aneh. Maka: download ke nama aman
+	// sementara (job ID), lalu rename ke nama final setelah selesai.
+	tmpBase := filepath.Join(req.Dir, fmt.Sprintf("dd_%d", j.ID))
 	switch {
 	case kind == "audio":
 		// webm opus → extract ke container .opus murni (remux cepat, tanpa re-encode)
 		if ext == "webm" {
 			finalPath = outBase + ".opus"
-			dlArgs = []string{"-f", req.FormatID, "-x", "--audio-format", "opus", "-o", outBase+".%(ext)s", "--no-part", "--no-playlist"}
+			dlArgs = []string{"-f", req.FormatID, "-x", "--audio-format", "opus", "-o", tmpBase + ".%(ext)s", "--no-part", "--no-playlist"}
 		} else {
 			finalPath = outBase + "." + ext
-			dlArgs = []string{"-f", req.FormatID, "-o", finalPath, "--no-part", "--no-playlist"}
+			dlArgs = []string{"-f", req.FormatID, "-o", tmpBase + "." + ext, "--no-part", "--no-playlist"}
 		}
 	case kind == "video":
 		finalPath = outBase + "." + ext
-		dlArgs = []string{"-f", req.FormatID, "-o", finalPath, "--no-part", "--no-playlist"}
+		dlArgs = []string{"-f", req.FormatID, "-o", tmpBase + "." + ext, "--no-part", "--no-playlist"}
 	default: // video_only → merge dengan audio terbaik
 		finalPath = outBase + ".mp4"
-		dlArgs = []string{"-f", req.FormatID + "+bestaudio", "--merge-output-format", "mp4", "-o", finalPath, "--no-part", "--no-playlist"}
+		dlArgs = []string{"-f", req.FormatID + "+bestaudio", "--merge-output-format", "mp4", "-o", tmpBase + ".%(ext)s", "--no-part", "--no-playlist"}
 	}
 	if req.Thumb {
 		dlArgs = append(dlArgs, "--embed-thumbnail")
@@ -659,6 +663,32 @@ func doDownload(j *Job) {
 		return
 	}
 	pw.Close()
+	// cari hasil download (tmpBase.*) lalu rename ke nama final
+	matches, _ := filepath.Glob(tmpBase + ".*")
+	var produced string
+	for _, m := range matches {
+		if strings.HasSuffix(m, ".part") || strings.HasSuffix(m, ".ytdl") {
+			continue
+		}
+		produced = m
+		break
+	}
+	if produced == "" {
+		j.Status = "error"
+		j.Err = "file hasil tidak ditemukan"
+		return
+	}
+	if produced != finalPath {
+		if err := os.Rename(produced, finalPath); err != nil {
+			// kalau rename gagal (file tujuan ada), hapus lama dulu
+			os.Remove(finalPath)
+			if err2 := os.Rename(produced, finalPath); err2 != nil {
+				j.Status = "error"
+				j.Err = "gagal rename: " + err2.Error()
+				return
+			}
+		}
+	}
 	queueMu.Lock()
 	j.Percent = 100
 	j.Speed = ""
