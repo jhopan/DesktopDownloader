@@ -1,6 +1,6 @@
 ; Inno Setup script — WebDownloader
-#define MyAppName "WebDownloader"
-#define MyAppVersion "1.0.0"
+#define MyAppName "DownloaderDesktop"
+#define MyAppVersion "1.1.0"
 #define MyAppExeName "WebDownloader.exe"
 
 [Setup]
@@ -10,7 +10,7 @@ AppVersion={#MyAppVersion}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
-OutputBaseFilename=WebDownloader-Setup-{#MyAppVersion}
+OutputBaseFilename=DownloaderDesktop-Setup-{#MyAppVersion}
 Compression=lzma2/max
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible

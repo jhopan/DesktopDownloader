@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -33,7 +34,10 @@ var ytdlpBin embed.FS
 //go:embed ui.html
 var uiHTML []byte
 
-const appVersion = "1.0.0"
+//go:embed icon_64.png
+var iconPNG []byte
+
+const appVersion = "1.1.0"
 
 var (
 	appDir       string // %LOCALAPPDATA%\WebDownloader
@@ -137,7 +141,7 @@ func main() {
 		Debug:     false,
 		AutoFocus: true,
 		WindowOptions: webview.WindowOptions{
-			Title:  "WebDownloader",
+			Title:  "DownloaderDesktop",
 			Width:  980,
 			Height: 720,
 			Center: true,
@@ -152,8 +156,11 @@ func main() {
 }
 
 func handleIndex(w http.ResponseWriter, r *http.Request) {
+	// logo base64 kecil (64px png) untuk header sidebar
+	iconB64 := base64.StdEncoding.EncodeToString(iconPNG)
+	html := strings.ReplaceAll(string(uiHTML), "{{ICON}}", iconB64)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write(uiHTML)
+	w.Write([]byte(html))
 }
 
 func handleInfo(w http.ResponseWriter, r *http.Request) {
